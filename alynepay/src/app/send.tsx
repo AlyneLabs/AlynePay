@@ -103,11 +103,12 @@ function SwipeSlider({
 export default function SendScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ name?: string; address?: string }>();
-  const { balance, deductBalance } = useWallet();
+  const params = useLocalSearchParams<{ name?: string; address?: string; nodeId?: string }>();
+  const { balance, deductBalance, isMeshActive } = useWallet();
 
   const recipientName = params.name || 'Direct Peer';
   const recipientAddress = params.address || '0x7F2A...3B9C';
+  const recipientNodeId = params.nodeId;
 
   const [paymentAmount, setPaymentAmount] = useState('100.00');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -123,7 +124,7 @@ export default function SendScreen() {
       setPaymentSuccess(false);
       setPaymentError(null);
       setPaymentAmount('100.00');
-    }, [params.name, params.address])
+    }, [params.name, params.address, params.nodeId])
   );
 
   const parsedAmount = parseFloat(paymentAmount) || 0;
@@ -146,6 +147,7 @@ export default function SendScreen() {
     const success = deductBalance(num, {
       name: recipientName,
       address: recipientAddress,
+      nodeId: recipientNodeId,
     });
 
     if (success) {
@@ -212,10 +214,10 @@ export default function SendScreen() {
                     {recipientAddress}
                   </ThemedText>
                 </View>
-                <View style={styles.meshBadge}>
-                  <View style={styles.greenPulse} />
-                  <ThemedText type="labelMono" style={{ color: '#34D399', fontSize: 11 }}>
-                    DIRECT PEER LINK ACTIVE
+                <View style={[styles.meshBadge, isMeshActive && { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: '#34D399' }]}>
+                  <View style={[styles.greenPulse, { backgroundColor: isMeshActive ? '#34D399' : '#4CD7F6' }]} />
+                  <ThemedText type="labelMono" style={{ color: isMeshActive ? '#34D399' : '#4CD7F6', fontSize: 11 }}>
+                    {isMeshActive ? (recipientNodeId ? 'DIRECT BLE/WIFI LINK READY' : 'MESH ROUTING ACTIVE') : 'OFFLINE VAULT SIGNING'}
                   </ThemedText>
                 </View>
               </View>

@@ -23,6 +23,7 @@ class AlyneNetService : Service() {
     private val NOTIFICATION_ID = 1
 
     lateinit var meshManager: MeshManager
+    private var bridgeServer: SystmBridgeServer? = null
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
@@ -56,6 +57,10 @@ class AlyneNetService : Service() {
         
         meshManager = MeshManager(identity, ble, wifi, internet)
         Log.i(TAG, "Mesh Service Ready. Node ID: ${identity.nodeId}")
+
+        // Start local IPC Bridge Server for AlynePay app
+        bridgeServer = SystmBridgeServer(meshManager)
+        bridgeServer?.start()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -96,6 +101,7 @@ class AlyneNetService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "Stopping Alyne Net System...")
-        // Modules should be stopped via MeshManager or directly here
+        bridgeServer?.stop()
+        meshManager.stopAll()
     }
 }
