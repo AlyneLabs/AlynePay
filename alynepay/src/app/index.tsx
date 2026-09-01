@@ -20,24 +20,13 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, BottomTabInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useWallet, UserPeer } from '@/context/wallet-context';
-
-const PEER_DIRECTORY: UserPeer[] = [
-  { id: 'dir-1', name: 'Node 7', address: '0x7F2A...3B9C' },
-  { id: 'dir-2', name: 'Orbit', address: '0x8B1C...4E2A' },
-  { id: 'dir-3', name: 'Sector 4', address: '0x3E9D...1F7B' },
-  { id: 'dir-4', name: 'Elena', address: '0x5A4F...9C0E' },
-  { id: 'dir-5', name: 'Alex', address: '0x2C8B...7D1A' },
-  { id: 'dir-6', name: 'Dev 9', address: '0x9E1A...6F4C' },
-  { id: 'dir-7', name: 'Satoshi Node', address: '0x1A2B...3C4D' },
-  { id: 'dir-8', name: 'Cyber Mesh', address: '0x4E5F...6A7B' },
-];
+import { useWallet } from '@/context/wallet-context';
 
 export default function PayScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { height: windowHeight } = useWindowDimensions();
-  const { balance, transactions, recents } = useWallet();
+  const { balance, transactions, recents, publicKey, privateKey } = useWallet();
 
   // State
   const [showPrivateKey, setShowPrivateKey] = useState(false);
@@ -68,11 +57,6 @@ export default function PayScreen() {
     if (!permission?.granted) {
       const res = await requestPermission();
       if (!res.granted) {
-        // Fallback for simulation / denied permission
-        router.push({
-          pathname: '/send',
-          params: { name: 'Demo Node 9', address: '0x9E1A...6F4C' },
-        });
         return;
       }
     }
@@ -98,14 +82,13 @@ export default function PayScreen() {
         const urlParams = new URLSearchParams(data.split('?')[1]);
         name = urlParams.get('user') || 'Alyne Peer';
       } catch {
-        name = 'Node ' + data.slice(0, 4);
+        name = 'Peer ' + data.slice(0, 4);
       }
     } else if (data.length > 8) {
-      name = 'Node ' + data.slice(0, 4);
+      name = 'Peer ' + data.slice(0, 4);
       address = data.length > 16 ? `${data.slice(0, 6)}...${data.slice(-4)}` : data;
     }
 
-    // Direct route to full-page payment screen
     router.push({
       pathname: '/send',
       params: { name, address },
@@ -121,10 +104,11 @@ export default function PayScreen() {
     });
   };
 
-  // Filtered peer directory
-  const filteredPeers = PEER_DIRECTORY.filter((peer) =>
-    peer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    peer.address.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter existing recents
+  const filteredRecents = recents.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -244,7 +228,7 @@ export default function PayScreen() {
             </View>
           </Pressable>
 
-          {/* 2. Recents Row (Real recents only, dynamically populated on payment) */}
+          {/* 2. Recents Row (Real recents only) */}
           <View style={styles.recentsSection}>
             <ThemedText type="labelMono" style={styles.recentsTitle}>
               RECENTS
@@ -298,7 +282,7 @@ export default function PayScreen() {
                     CURRENT BALANCE
                   </ThemedText>
                   <ThemedText type="amount" style={styles.balanceText}>
-                    {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY
+                    ₹{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </ThemedText>
                 </View>
                 <View style={styles.contactlessIcon}>
@@ -312,7 +296,7 @@ export default function PayScreen() {
                     PUBLIC KEY
                   </ThemedText>
                   <ThemedText type="labelMono" style={{ color: theme.primary }}>
-                    0x7F...3B9C
+                    {publicKey}
                   </ThemedText>
                 </View>
 
@@ -324,7 +308,7 @@ export default function PayScreen() {
                   </ThemedText>
                   <View style={styles.privateKeyContainer}>
                     <ThemedText type="labelMono" style={styles.privateKeyText}>
-                      {showPrivateKey ? '0x9E4A...B210' : '••••••••••••'}
+                      {showPrivateKey ? privateKey : '••••••••••••'}
                     </ThemedText>
                     <Pressable
                       onPress={() => setShowPrivateKey(!showPrivateKey)}
@@ -369,55 +353,64 @@ export default function PayScreen() {
               Payment History
             </ThemedText>
 
-            <View style={styles.freeTransactionsList}>
-              {transactions.map((tx, idx) => (
-                <React.Fragment key={tx.id}>
-                  {idx > 0 && <View style={styles.txDivider} />}
-                  <Pressable
-                    style={({ pressed }) => [styles.txItem, pressed && styles.txItemPressed]}>
-                    <View style={styles.txLeft}>
-                      <View
-                        style={[
-                          styles.txIconContainer,
-                          {
-                            backgroundColor:
-                              tx.type === 'received'
+            {transactions.length === 0 ? (
+              <View style={styles.emptyHistoryBox}>
+                <MaterialIcons name="receipt-long" size={26} color="#8E9192" />
+                <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                  No transaction history yet. Send or deposit to view activity.
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.freeTransactionsList}>
+                {transactions.map((tx, idx) => (
+                  <React.Fragment key={tx.id}>
+                    {idx > 0 && <View style={styles.txDivider} />}
+                    <Pressable
+                      style={({ pressed }) => [styles.txItem, pressed && styles.txItemPressed]}>
+                      <View style={styles.txLeft}>
+                        <View
+                          style={[
+                            styles.txIconContainer,
+                            {
+                              backgroundColor:
+                                tx.type === 'received'
                                 ? 'rgba(76, 215, 246, 0.12)'
                                 : 'rgba(210, 187, 255, 0.12)',
-                          },
+                            },
+                          ]}>
+                          <MaterialIcons
+                            name={tx.type === 'received' ? 'arrow-downward' : 'arrow-upward'}
+                            size={20}
+                            color={tx.type === 'received' ? theme.tertiary : theme.secondary}
+                          />
+                        </View>
+                        <View style={styles.txTextContainer}>
+                          <ThemedText type="default" style={styles.txTitle}>
+                            {tx.title}
+                          </ThemedText>
+                          <ThemedText type="labelMono" style={styles.txTimestamp}>
+                            {tx.timestamp}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <ThemedText
+                        type="default"
+                        style={[
+                          styles.txAmount,
+                          tx.type === 'received' ? { color: theme.tertiary } : { color: theme.onSurface },
                         ]}>
-                        <MaterialIcons
-                          name={tx.type === 'received' ? 'arrow-downward' : 'arrow-upward'}
-                          size={20}
-                          color={tx.type === 'received' ? theme.tertiary : theme.secondary}
-                        />
-                      </View>
-                      <View style={styles.txTextContainer}>
-                        <ThemedText type="default" style={styles.txTitle}>
-                          {tx.title}
-                        </ThemedText>
-                        <ThemedText type="labelMono" style={styles.txTimestamp}>
-                          {tx.timestamp}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <ThemedText
-                      type="default"
-                      style={[
-                        styles.txAmount,
-                        tx.type === 'received' ? { color: theme.tertiary } : { color: theme.onSurface },
-                      ]}>
-                      {tx.amount}
-                    </ThemedText>
-                  </Pressable>
-                </React.Fragment>
-              ))}
-            </View>
+                        {tx.amount}
+                      </ThemedText>
+                    </Pressable>
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
 
-      {/* SEARCH OVERLAY (Slide to top) */}
+      {/* SEARCH OVERLAY */}
       <Modal
         visible={isSearchActive}
         animationType="fade"
@@ -470,10 +463,11 @@ export default function PayScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.searchResultsScroll}>
               <ThemedText type="labelMono" style={styles.searchSectionHeading}>
-                {searchQuery.trim().length > 0 ? 'PEER DIRECTORY' : 'AVAILABLE DIRECTORY'}
+                {searchQuery.trim().length > 0 ? 'SEARCH RESULT' : 'RECENT PEERS'}
               </ThemedText>
 
-              {filteredPeers.map((user) => (
+              {/* Show matching recents */}
+              {filteredRecents.map((user) => (
                 <Pressable
                   key={user.id}
                   onPress={() => navigateToSend(user)}
@@ -500,8 +494,9 @@ export default function PayScreen() {
                 </Pressable>
               ))}
 
+              {/* Dynamic User Lookup for typed username */}
               {searchQuery.trim().length > 0 &&
-                !filteredPeers.some(
+                !filteredRecents.some(
                   (p) => p.name.toLowerCase() === searchQuery.trim().toLowerCase()
                 ) && (
                   <Pressable
@@ -533,6 +528,14 @@ export default function PayScreen() {
                     </View>
                   </Pressable>
                 )}
+
+              {searchQuery.trim().length === 0 && recents.length === 0 && (
+                <View style={styles.emptySearchNotice}>
+                  <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                    Type any username to send payments directly via mesh
+                  </ThemedText>
+                </View>
+              )}
             </ScrollView>
           </SafeAreaView>
         </View>
@@ -560,10 +563,10 @@ export default function PayScreen() {
             </View>
 
             <ThemedText type="labelMono" style={styles.qrAddressText}>
-              0x7F2A...3B9C
+              {publicKey}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.qrHintText}>
-              Scan to send offline ALY payments
+              Scan to send offline ₹ payments
             </ThemedText>
           </Pressable>
         </Pressable>
@@ -589,7 +592,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   scrollContent: {
-    paddingBottom: BottomTabInset + Spacing.xl,
+    paddingBottom: Spacing.xl * 1.5,
   },
   frostedTopLayer: {
     width: '100%',
@@ -972,6 +975,17 @@ const styles = StyleSheet.create({
     color: '#E5E2E1',
     letterSpacing: -0.4,
   },
+  emptyHistoryBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 8,
+  },
   freeTransactionsList: {
     width: '100%',
     gap: 2,
@@ -1183,5 +1197,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: 'rgba(76, 215, 246, 0.25)',
+  },
+  emptySearchNotice: {
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
   },
 });

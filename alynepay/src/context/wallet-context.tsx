@@ -18,46 +18,31 @@ interface WalletContextType {
   balance: number;
   transactions: Transaction[];
   recents: UserPeer[];
+  publicKey: string;
+  privateKey: string;
+  nodeId: string;
   deductBalance: (amount: number, recipient: { name: string; address: string }) => boolean;
   addDeposit: (amount: number) => void;
   addRecent: (user: UserPeer) => void;
 }
 
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'tx-1',
-    type: 'received',
-    title: 'Received from Node 7',
-    timestamp: 'Today, 14:32',
-    amount: '+ 500.00 ALY',
-  },
-  {
-    id: 'tx-2',
-    type: 'sent',
-    title: 'Sent to Orbit Station',
-    timestamp: 'Yesterday, 09:15',
-    amount: '- 1,200.00 ALY',
-  },
-  {
-    id: 'tx-3',
-    type: 'sent',
-    title: 'Sent to Sector 4 Vendor',
-    timestamp: 'Oct 24, 18:45',
-    amount: '- 45.50 ALY',
-  },
-];
-
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [balance, setBalance] = useState<number>(12450.0);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  // Clean initial recents (no mock users)
+  // Live starting balance (0.00 ALY, fully functional with deposit & send)
+  const [balance, setBalance] = useState<number>(0.0);
+  // Real transaction history (starts empty, populated on actual transfers & deposits)
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Real recents list (starts empty, populated on actual payments)
   const [recents, setRecents] = useState<UserPeer[]>([]);
+
+  // Unique Wallet Node Identity
+  const publicKey = '0x7F2A...3B9C';
+  const privateKey = '0x9E4A...B210';
+  const nodeId = 'NODE-7X99-ALYN';
 
   const addRecent = (user: UserPeer) => {
     setRecents((prev) => {
-      // Remove duplicate by name or address if exists
       const filtered = prev.filter(
         (p) => p.name.toLowerCase() !== user.name.toLowerCase() && p.address !== user.address
       );
@@ -73,12 +58,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const newBal = Math.round((balance - amount) * 100) / 100;
     setBalance(newBal);
 
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       type: 'sent',
       title: `Sent to ${recipient.name}`,
-      timestamp: 'Just now',
-      amount: `- ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY`,
+      timestamp: `Today, ${timeStr}`,
+      amount: `- ₹${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     };
     setTransactions((prev) => [newTx, ...prev]);
 
@@ -98,12 +86,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const newBal = Math.round((balance + amount) * 100) / 100;
     setBalance(newBal);
 
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       type: 'received',
       title: 'Vault Deposit / Top-up',
-      timestamp: 'Just now',
-      amount: `+ ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY`,
+      timestamp: `Today, ${timeStr}`,
+      amount: `+ ₹${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     };
     setTransactions((prev) => [newTx, ...prev]);
   };
@@ -114,6 +105,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         balance,
         transactions,
         recents,
+        publicKey,
+        privateKey,
+        nodeId,
         deductBalance,
         addDeposit,
         addRecent,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -24,6 +24,14 @@ export default function DepositScreen() {
   const [depositSuccess, setDepositSuccess] = useState(false);
   const [depositError, setDepositError] = useState<string | null>(null);
 
+  useFocusEffect(
+    useCallback(() => {
+      setDepositSuccess(false);
+      setDepositError(null);
+      setDepositAmount('500.00');
+    }, [])
+  );
+
   const parsedAmount = parseFloat(depositAmount) || 0;
 
   const handleConfirmDeposit = () => {
@@ -37,8 +45,8 @@ export default function DepositScreen() {
     addDeposit(parsedAmount);
 
     setTimeout(() => {
-      router.replace('/');
-    }, 1400);
+      router.navigate('/');
+    }, 1200);
   };
 
   return (
@@ -47,7 +55,7 @@ export default function DepositScreen() {
         {/* Top Bar with Back Button */}
         <View style={styles.topBar}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.navigate('/')}
             hitSlop={12}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
             <MaterialIcons name="arrow-back" size={24} color="#E5E2E1" />
@@ -70,10 +78,10 @@ export default function DepositScreen() {
                 Funds Added!
               </ThemedText>
               <ThemedText type="amount" style={{ color: '#34D399', marginVertical: 8 }}>
-                + {parsedAmount.toFixed(2)} ALY
+                + ₹{parsedAmount.toFixed(2)}
               </ThemedText>
               <ThemedText type="labelMono" themeColor="textSecondary">
-                New Balance: {(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY
+                New Balance: ₹{(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </ThemedText>
             </View>
           ) : (
@@ -89,18 +97,18 @@ export default function DepositScreen() {
                   Add Money to Vault
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Current Vault Balance: {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY
+                  Current Vault Balance: ₹{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </ThemedText>
               </View>
 
               {/* Amount Input */}
               <View style={styles.amountInputSection}>
                 <ThemedText type="labelMono" style={styles.amountLabel}>
-                  ENTER DEPOSIT AMOUNT (ALY)
+                  ENTER DEPOSIT AMOUNT (₹)
                 </ThemedText>
                 <View style={styles.amountInputRow}>
                   <ThemedText type="headlineLg" style={styles.currencyPrefix}>
-                    ALY
+                    ₹
                   </ThemedText>
                   <TextInput
                     value={depositAmount}
@@ -127,7 +135,7 @@ export default function DepositScreen() {
                       }}
                       style={styles.chipButton}>
                       <ThemedText type="labelMono" style={styles.chipText}>
-                        +{amt}
+                        +₹{amt}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -143,7 +151,7 @@ export default function DepositScreen() {
                 )}
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.availableBalanceText}>
-                  Projected Balance: {(balance + parsedAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY
+                  Projected Balance: ₹{(balance + parsedAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </ThemedText>
               </View>
 

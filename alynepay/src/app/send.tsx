@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -31,30 +31,36 @@ function SwipeSlider({
   const knobWidth = 48;
   const maxSlide = Math.max(0, trackWidth - knobWidth - 12);
 
+  const onSwipeCompleteRef = useRef(onSwipeComplete);
+  onSwipeCompleteRef.current = onSwipeComplete;
+
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled,
-      onMoveShouldSetPanResponder: () => !disabled,
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: () => !disabledRef.current,
       onPanResponderMove: (_, gestureState) => {
-        if (disabled) return;
+        if (disabledRef.current) return;
         const newX = Math.min(Math.max(0, gestureState.dx), maxSlide);
         pan.setValue(newX);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (disabled) return;
+        if (disabledRef.current) return;
         if (gestureState.dx >= maxSlide * 0.75) {
           Animated.timing(pan, {
             toValue: maxSlide,
             duration: 150,
             useNativeDriver: true,
           }).start(() => {
-            onSwipeComplete();
+            onSwipeCompleteRef.current();
             setTimeout(() => {
               Animated.spring(pan, {
                 toValue: 0,
                 useNativeDriver: true,
               }).start();
-            }, 600);
+            }, 500);
           });
         } else {
           Animated.spring(pan, {
@@ -107,21 +113,37 @@ export default function SendScreen() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
+  // Keep a ref to the latest amount so swipe always reads real current value
+  const paymentAmountRef = useRef(paymentAmount);
+  paymentAmountRef.current = paymentAmount;
+
+  // Always reset screen state when focused with new params
+  useFocusEffect(
+    useCallback(() => {
+      setPaymentSuccess(false);
+      setPaymentError(null);
+      setPaymentAmount('100.00');
+    }, [params.name, params.address])
+  );
+
   const parsedAmount = parseFloat(paymentAmount) || 0;
   const isInsufficient = balance <= 0 || parsedAmount > balance;
 
   const handleExecutePayment = () => {
-    if (parsedAmount <= 0) {
+    const rawVal = paymentAmountRef.current;
+    const num = parseFloat(rawVal) || 0;
+
+    if (num <= 0) {
       setPaymentError('Please enter a valid amount');
       return;
     }
 
-    if (balance <= 0 || parsedAmount > balance) {
+    if (balance <= 0 || num > balance) {
       setPaymentError('Insufficient money in wallet');
       return;
     }
 
-    const success = deductBalance(parsedAmount, {
+    const success = deductBalance(num, {
       name: recipientName,
       address: recipientAddress,
     });
@@ -130,8 +152,8 @@ export default function SendScreen() {
       setPaymentError(null);
       setPaymentSuccess(true);
       setTimeout(() => {
-        router.replace('/');
-      }, 1400);
+        router.navigate('/');
+      }, 1200);
     } else {
       setPaymentError('Insufficient money in wallet');
     }
@@ -143,7 +165,7 @@ export default function SendScreen() {
         {/* Top Bar with Back Button */}
         <View style={styles.topBar}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.navigate('/')}
             hitSlop={12}
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
             <MaterialIcons name="arrow-back" size={24} color="#E5E2E1" />
@@ -166,7 +188,7 @@ export default function SendScreen() {
                 Payment Sent!
               </ThemedText>
               <ThemedText type="amount" style={{ color: '#34D399', marginVertical: 8 }}>
-                - {parsedAmount.toFixed(2)} ALY
+                - ₹{(parseFloat(paymentAmountRef.current) || 0).toFixed(2)}
               </ThemedText>
               <ThemedText type="labelMono" themeColor="textSecondary">
                 Signed Offline Tx to {recipientName}
@@ -174,7 +196,7 @@ export default function SendScreen() {
             </View>
           ) : (
             <>
-              {/* Recipient Details */}
+              {/* Recipient Identity Details */}
               <View style={styles.recipientCenterBox}>
                 <View style={styles.recipientAvatarRing}>
                   <View style={styles.recipientAvatar}>
@@ -201,11 +223,11 @@ export default function SendScreen() {
               {/* Amount Input */}
               <View style={styles.amountInputSection}>
                 <ThemedText type="labelMono" style={styles.amountLabel}>
-                  ENTER AMOUNT (ALY)
+                  ENTER AMOUNT (₹)
                 </ThemedText>
                 <View style={styles.amountInputRow}>
                   <ThemedText type="headlineLg" style={styles.currencyPrefix}>
-                    ALY
+                    ₹
                   </ThemedText>
                   <TextInput
                     value={paymentAmount}
@@ -232,7 +254,7 @@ export default function SendScreen() {
                       }}
                       style={styles.chipButton}>
                       <ThemedText type="labelMono" style={styles.chipText}>
-                        +{amt}
+                        +₹{amt}
                       </ThemedText>
                     </Pressable>
                   ))}
@@ -254,7 +276,7 @@ export default function SendScreen() {
                     styles.availableBalanceText,
                     balance <= 0 && { color: '#FFB4AB' },
                   ]}>
-                  Available Vault Balance: {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ALY
+                  Available Vault Balance: ₹{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </ThemedText>
 
                 {(isInsufficient || paymentError) && (

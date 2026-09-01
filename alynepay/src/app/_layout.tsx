@@ -1,9 +1,8 @@
-import { DarkTheme, ThemeProvider } from 'expo-router';
+import { Stack, DarkTheme, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { WalletProvider } from '@/context/wallet-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -26,7 +25,11 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <AnimatedSplashOverlay />
       <WalletProvider>
-        <AppTabs />
+        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="send" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="deposit" options={{ animation: 'slide_from_bottom' }} />
+        </Stack>
       </WalletProvider>
     </ThemeProvider>
   );
