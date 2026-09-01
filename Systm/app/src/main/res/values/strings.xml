@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Systm</string>
+    <string name="user_name">Liquid Ammo</string>
+    <string name="user_wallet">0xd8dA6BF26964aF9D7eEd9...</string>
+    <string name="systm_label">SYSTM</string>
+    <string name="mesh_label">MESH</string>
+    <string name="internet_routing_label">Internet\nRouting</string>
+    <string name="wi_fi_tunnels_label">Wi-Fi\nTunnels</string>
+    <string name="energy_saver_label">Energy\nSaver</string>
+    <string name="limit_devices_label">Limit\nDevices</string>
+    <string name="connected_nodes_label">CONNECTED NODES</string>
+    <string name="node_count_02">02</string>
+    <string name="node_count_04">04</string>
+    <string name="home_desc">Home</string>
+    <string name="profile_desc">Profile</string>
+    <string name="settings_desc">Settings</string>
+    <string name="updates_desc">Updates</string>
+</resources>
