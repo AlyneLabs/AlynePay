@@ -18,7 +18,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, BottomTabInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useWallet } from '@/context/wallet-context';
 
@@ -26,7 +26,7 @@ export default function PayScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { height: windowHeight } = useWindowDimensions();
-  const { balance, transactions, recents, publicKey, privateKey, isMeshActive, meshPeers } = useWallet();
+  const { balance, transactions, recents, publicKey, privateKey } = useWallet();
 
   // State
   const [showPrivateKey, setShowPrivateKey] = useState(false);
@@ -76,13 +76,11 @@ export default function PayScreen() {
 
     let name = 'Alyne Peer';
     let address = data || '0x7F2A...3B9C';
-    let nodeId: string | undefined = undefined;
 
     if (data.includes('user=')) {
       try {
         const urlParams = new URLSearchParams(data.split('?')[1]);
         name = urlParams.get('user') || 'Alyne Peer';
-        nodeId = urlParams.get('nodeId') || undefined;
       } catch {
         name = 'Peer ' + data.slice(0, 4);
       }
@@ -93,20 +91,16 @@ export default function PayScreen() {
 
     router.push({
       pathname: '/send',
-      params: { name, address, nodeId },
+      params: { name, address },
     });
   };
 
-  const navigateToSend = (peer: { name: string; address: string; nodeId?: number | string }) => {
+  const navigateToSend = (peer: { name: string; address: string }) => {
     setIsSearchActive(false);
     setSearchQuery('');
     router.push({
       pathname: '/send',
-      params: {
-        name: peer.name,
-        address: peer.address,
-        nodeId: peer.nodeId ? peer.nodeId.toString() : undefined,
-      },
+      params: { name: peer.name, address: peer.address },
     });
   };
 
@@ -117,16 +111,9 @@ export default function PayScreen() {
       p.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter nearby mesh peers
-  const filteredMeshPeers = meshPeers.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.address.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Fixed Top Left Profile Pic & Username + Top Right Mesh Status Indicator */}
+      {/* Fixed Top Left Profile Pic & Username */}
       {!isCameraActive && !isSearchActive && (
         <SafeAreaView edges={['top']} style={styles.fixedProfileHeader} pointerEvents="box-none">
           <View style={styles.profileContainer}>
@@ -135,14 +122,6 @@ export default function PayScreen() {
             </View>
             <ThemedText type="default" style={styles.userNameText}>
               user
-            </ThemedText>
-          </View>
-
-          {/* Decentralized Mesh Status Pill */}
-          <View style={[styles.meshStatusPill, isMeshActive && styles.meshStatusPillActive]}>
-            <View style={[styles.meshPulseDot, { backgroundColor: isMeshActive ? '#34D399' : '#8E9192' }]} />
-            <ThemedText type="labelMono" style={[styles.meshStatusText, { color: isMeshActive ? '#34D399' : '#8E9192' }]}>
-              {isMeshActive ? 'MESH ACTIVE' : 'OFFLINE VAULT'}
             </ThemedText>
           </View>
         </SafeAreaView>
@@ -483,42 +462,6 @@ export default function PayScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.searchResultsScroll}>
-              
-              {/* 1. Show Nearby Physical Mesh Peers if detected by BLE/Wi-Fi */}
-              {meshPeers.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
-                  <ThemedText type="labelMono" style={[styles.searchSectionHeading, { color: '#34D399' }]}>
-                    NEARBY MESH PEERS (BLE / WI-FI)
-                  </ThemedText>
-                  {filteredMeshPeers.map((peer) => (
-                    <Pressable
-                      key={peer.id}
-                      onPress={() => navigateToSend({ name: peer.name, address: peer.address, nodeId: peer.nodeId })}
-                      style={({ pressed }) => [styles.searchResultCard, styles.meshPeerCard, pressed && styles.pressed]}>
-                      <View style={styles.searchResultLeft}>
-                        <View style={[styles.searchResultAvatar, { borderColor: '#34D399' }]}>
-                          <MaterialIcons name="sensors" size={24} color="#34D399" />
-                        </View>
-                        <View style={styles.searchResultInfo}>
-                          <ThemedText type="default" style={styles.searchResultName}>
-                            {peer.name}
-                          </ThemedText>
-                          <ThemedText type="labelMono" style={{ color: '#34D399', fontSize: 11 }}>
-                            Direct {peer.bearer} Mesh Link
-                          </ThemedText>
-                        </View>
-                      </View>
-                      <View style={[styles.searchPayAction, { borderColor: '#34D399', backgroundColor: 'rgba(52, 211, 153, 0.12)' }]}>
-                        <ThemedText type="labelMono" style={{ color: '#34D399', fontSize: 11 }}>
-                          PAY
-                        </ThemedText>
-                        <MaterialIcons name="arrow-forward" size={16} color="#34D399" />
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
               <ThemedText type="labelMono" style={styles.searchSectionHeading}>
                 {searchQuery.trim().length > 0 ? 'SEARCH RESULT' : 'RECENT PEERS'}
               </ThemedText>
@@ -555,9 +498,6 @@ export default function PayScreen() {
               {searchQuery.trim().length > 0 &&
                 !filteredRecents.some(
                   (p) => p.name.toLowerCase() === searchQuery.trim().toLowerCase()
-                ) &&
-                !filteredMeshPeers.some(
-                  (p) => p.name.toLowerCase() === searchQuery.trim().toLowerCase()
                 ) && (
                   <Pressable
                     onPress={() =>
@@ -589,10 +529,10 @@ export default function PayScreen() {
                   </Pressable>
                 )}
 
-              {searchQuery.trim().length === 0 && recents.length === 0 && meshPeers.length === 0 && (
+              {searchQuery.trim().length === 0 && recents.length === 0 && (
                 <View style={styles.emptySearchNotice}>
                   <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-                    Type any username or peer name to send payments directly via mesh
+                    Type any username to send payments directly via mesh
                   </ThemedText>
                 </View>
               )}
@@ -647,9 +587,6 @@ const styles = StyleSheet.create({
     zIndex: 100,
     paddingHorizontal: Spacing.marginMobile,
     paddingTop: Spacing.xs,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   topHeaderSpacer: {
     height: 40,
@@ -782,30 +719,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
-  },
-  meshStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  meshStatusPillActive: {
-    backgroundColor: 'rgba(52, 211, 153, 0.10)',
-    borderColor: 'rgba(52, 211, 153, 0.35)',
-  },
-  meshPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  meshStatusText: {
-    fontSize: 10,
-    letterSpacing: 0.8,
   },
   scanQrAction: {
     alignItems: 'center',
@@ -1240,10 +1153,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingVertical: 12,
     paddingHorizontal: 14,
-  },
-  meshPeerCard: {
-    borderColor: 'rgba(52, 211, 153, 0.35)',
-    backgroundColor: 'rgba(52, 211, 153, 0.06)',
   },
   customMatchCard: {
     borderColor: 'rgba(76, 215, 246, 0.25)',

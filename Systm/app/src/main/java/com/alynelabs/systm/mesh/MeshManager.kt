@@ -47,9 +47,6 @@ class MeshManager(
     private val _meshTopology = MutableStateFlow<Map<Long, List<Long>>>(emptyMap())
     val meshTopology: StateFlow<Map<Long, List<Long>>> = _meshTopology.asStateFlow()
 
-    // Payment callback for local IPC / AlynePay
-    var onPaymentReceivedListener: ((org.json.JSONObject) -> Unit)? = null
-
     init {
         Log.i(TAG, "MeshManager Initialized for Node: ${identity.nodeId}")
         ble.localNodeId = identity.nodeId
@@ -217,41 +214,9 @@ class MeshManager(
         when (packet.type) {
             MeshPacket.PacketType.LSA -> handleLSA(packet)
             MeshPacket.PacketType.DATA -> {
-                val payloadStr = String(packet.payload, Charsets.UTF_8)
-                Log.i(TAG, "[CONSUME] Data from ${packet.source.nodeHashId}: $payloadStr")
-                try {
-                    val json = org.json.JSONObject(payloadStr)
-                    if (json.optString("type") == "PAYMENT") {
-                        Log.i(TAG, "[PAYMENT RECEIVED] Dispatched from node ${packet.source.nodeHashId}")
-                        onPaymentReceivedListener?.invoke(json)
-                    }
-                } catch (e: Exception) {
-                    Log.d(TAG, "Data payload is not JSON payment: ${e.message}")
-                }
+                Log.i(TAG, "[CONSUME] Data from ${packet.source.nodeHashId}: ${String(packet.payload)}")
             }
             else -> {}
-        }
-    }
-
-    fun sendPaymentData(targetNodeId: Long, payloadJson: String): Boolean {
-        return try {
-            val targetAddr = nodeToAddress[targetNodeId] ?: IPvXAddress(0x10FD, IPvXAddress.BEARER_BLE, targetNodeId, 0)
-            val path = calculatePath(targetNodeId) ?: listOf(targetNodeId)
-            val packet = MeshPacket(
-                source = IPvXAddress(0, IPvXAddress.BEARER_IP, identity.nodeId, 0),
-                destination = targetAddr,
-                hopRoute = path,
-                nextHopIndex = 0,
-                payload = payloadJson.toByteArray(Charsets.UTF_8),
-                type = MeshPacket.PacketType.DATA
-            )
-
-            val nextHop = if (path.isNotEmpty()) path[0] else targetNodeId
-            sendToNode(nextHop, packet)
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send payment packet: ${e.message}")
-            false
         }
     }
 
